@@ -1,11 +1,13 @@
 package id.idham.chatapt.ui.chat
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -28,11 +31,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.idham.chatapt.database.ChatMessage
 import id.idham.chatapt.ui.theme.ChatAPTTheme
@@ -43,13 +52,13 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ChatScreen(viewModel: ChatViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val messages = viewModel.messages.collectAsStateWithLifecycle().value
 
     ChatContent(
         uiState = uiState,
-        inputText = viewModel.inputText.value,
-        messages = messages,
-        onTextChanged = viewModel.inputText::value::set,
+        inputText = uiState.inputText,
+        messages = uiState.messages,
+        onTemplateClicked = viewModel::sendTemplateMessage,
+        onTextChanged = viewModel::updateInputText,
         onSend = viewModel::sendMessage
     )
 }
@@ -60,6 +69,7 @@ fun ChatContent(
     uiState: ChatUiState,
     inputText: String,
     messages: List<ChatMessage>,
+    onTemplateClicked: (String) -> Unit,
     onTextChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
@@ -69,6 +79,7 @@ fun ChatContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.shadow(4.dp),
                 title = { Text(text = "ChatAPT") }
             )
         },
@@ -76,6 +87,7 @@ fun ChatContent(
             ChatInputBar(
                 uiState = uiState,
                 text = inputText,
+                onTemplateClicked = { onTemplateClicked(it) },
                 onSend = {
                     onSend()
                     coroutineScope.launch {
@@ -114,37 +126,85 @@ fun ChatContent(
 fun ChatInputBar(
     uiState: ChatUiState,
     text: String,
+    onTemplateClicked: (String) -> Unit,
     onSend: () -> Unit,
     onTextChanged: (String) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .navigationBarsPadding(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TextField(
-            value = text,
-            onValueChange = { onTextChanged(it) },
-            modifier = Modifier.weight(1f),
-            placeholder = { Text("Ketik pesan...") }
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        FilledIconButton(
-            modifier = Modifier.size(48.dp),
-            onClick = onSend,
-            enabled = uiState !is ChatUiState.Loading
-        ) {
-            if (uiState is ChatUiState.Loading) {
-                CircularProgressIndicator()
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Default.Send,
-                    contentDescription = "Send"
-                )
+    var showTemplates by remember { mutableStateOf(true) }
+
+    Column {
+        HorizontalDivider()
+        if (showTemplates) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 64.dp, end = 8.dp, top = 8.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                uiState.questionTemplates.forEach { template ->
+                    TemplateBubble(
+                        template = template,
+                        onClick = {
+                            onTemplateClicked(template)
+                            showTemplates = false
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
             }
         }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .navigationBarsPadding(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                value = text,
+                onValueChange = { onTextChanged(it) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Ketik pesan...") }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            FilledIconButton(
+                modifier = Modifier.size(48.dp),
+                onClick = {
+                    onSend()
+                    showTemplates = false
+                },
+                enabled = !uiState.isLoading
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator()
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Default.Send,
+                        contentDescription = "Send"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TemplateBubble(template: String, onClick: () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Text(
+            text = template,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(8.dp),
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -156,10 +216,13 @@ fun ChatMessageItem(message: ChatMessage) {
     } else {
         MaterialTheme.colorScheme.secondaryContainer
     }
+    val paddingEnd = if (message.isUser) 0.dp else 56.dp
+    val paddingStart = if (message.isUser) 56.dp else 0.dp
 
     Column(
         horizontalAlignment = alignment,
         modifier = Modifier
+            .padding(start = paddingStart, end = paddingEnd)
             .fillMaxWidth()
             .padding(vertical = 4.dp)
     ) {
@@ -180,9 +243,12 @@ fun ChatMessageItem(message: ChatMessage) {
 private fun ChatScreen_Preview() {
     ChatAPTTheme {
         ChatContent(
-            uiState = ChatUiState.Idle,
+            uiState = ChatUiState(
+                questionTemplates = listOf("Halo", "Apa kabar?", "Ada yang bisa dibantu?")
+            ),
             inputText = "",
             messages = emptyList(),
+            onTemplateClicked = {},
             onTextChanged = {},
             onSend = {}
         )
