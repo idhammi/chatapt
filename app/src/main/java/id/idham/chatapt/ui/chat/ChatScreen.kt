@@ -55,8 +55,6 @@ fun ChatScreen(viewModel: ChatViewModel = koinViewModel()) {
 
     ChatContent(
         uiState = uiState,
-        inputText = uiState.inputText,
-        messages = uiState.messages,
         onTemplateClicked = viewModel::sendTemplateMessage,
         onTextChanged = viewModel::updateInputText,
         onSend = viewModel::sendMessage
@@ -67,8 +65,6 @@ fun ChatScreen(viewModel: ChatViewModel = koinViewModel()) {
 @OptIn(ExperimentalMaterial3Api::class)
 fun ChatContent(
     uiState: ChatUiState,
-    inputText: String,
-    messages: List<ChatMessage>,
     onTemplateClicked: (String) -> Unit,
     onTextChanged: (String) -> Unit,
     onSend: () -> Unit,
@@ -86,14 +82,13 @@ fun ChatContent(
         bottomBar = {
             ChatInputBar(
                 uiState = uiState,
-                text = inputText,
                 onTemplateClicked = { onTemplateClicked(it) },
                 onSend = {
                     onSend()
                     coroutineScope.launch {
                         delay(100)
-                        if (messages.isNotEmpty()) {
-                            listState.animateScrollToItem(messages.size - 1)
+                        if (uiState.messages.isNotEmpty()) {
+                            listState.animateScrollToItem(uiState.messages.size - 1)
                         }
                     }
                 },
@@ -107,7 +102,7 @@ fun ChatContent(
                 contentPadding = PaddingValues(8.dp),
                 state = listState,
             ) {
-                items(messages) { message ->
+                items(uiState.messages) { message ->
                     ChatMessageItem(message = message)
                 }
             }
@@ -115,9 +110,9 @@ fun ChatContent(
     }
 
     // Scroll to bottom if new message inserted
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.scrollToItem(messages.size - 1)
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.isNotEmpty()) {
+            listState.scrollToItem(uiState.messages.size - 1)
         }
     }
 }
@@ -125,7 +120,6 @@ fun ChatContent(
 @Composable
 fun ChatInputBar(
     uiState: ChatUiState,
-    text: String,
     onTemplateClicked: (String) -> Unit,
     onSend: () -> Unit,
     onTextChanged: (String) -> Unit
@@ -138,7 +132,11 @@ fun ChatInputBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 64.dp, end = 8.dp, top = 8.dp),
+                    .padding(
+                        start = 64.dp,
+                        end = 8.dp,
+                        top = if (uiState.questionTemplates.isNotEmpty()) 8.dp else 0.dp
+                    ),
                 horizontalAlignment = Alignment.End
             ) {
                 uiState.questionTemplates.forEach { template ->
@@ -162,7 +160,7 @@ fun ChatInputBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
-                value = text,
+                value = uiState.inputText,
                 onValueChange = { onTextChanged(it) },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Ketik pesan...") }
@@ -246,8 +244,6 @@ private fun ChatScreen_Preview() {
             uiState = ChatUiState(
                 questionTemplates = listOf("Halo", "Apa kabar?", "Ada yang bisa dibantu?")
             ),
-            inputText = "",
-            messages = emptyList(),
             onTemplateClicked = {},
             onTextChanged = {},
             onSend = {}

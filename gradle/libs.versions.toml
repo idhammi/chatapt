@@ -1,5 +1,6 @@
 [versions]
 agp = "8.8.0"
+firebase = "33.10.0"
 koin = "4.0.2"
 kotlin = "2.1.0"
 coreKtx = "1.15.0"
@@ -14,9 +15,13 @@ okhttp = "4.12.0"
 retrofit = "2.11.0"
 room = "2.6.1"
 secrets = "2.0.1"
+googleServices = "4.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+firebase-analytics-ktx = { module = "com.google.firebase:firebase-analytics-ktx" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase" }
+firebase-config-ktx = { module = "com.google.firebase:firebase-config-ktx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -45,4 +50,5 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secrets" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 

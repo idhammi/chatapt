@@ -2,6 +2,9 @@ package id.idham.chatapt.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.remoteconfig.ktx.remoteConfig
+import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
 import id.idham.chatapt.data.Repository
 import id.idham.chatapt.database.ChatMessage
 import id.idham.chatapt.model.ContentsItem
@@ -29,7 +32,33 @@ class ChatViewModel(
     private val conversationHistory = MutableStateFlow<MutableList<ContentsItem>>(mutableListOf())
 
     init {
+        val remoteConfig = Firebase.remoteConfig
+        val configSettings = remoteConfigSettings {
+            minimumFetchIntervalInSeconds = 60
+        }
+        remoteConfig.setConfigSettingsAsync(configSettings)
+        remoteConfig.setDefaultsAsync(mapOf("show_question_templates" to true))
+
         viewModelScope.launch {
+            remoteConfig.fetchAndActivate()
+                .addOnCompleteListener { task ->
+                    viewModelScope.launch(Dispatchers.IO) { // Keep network operations off the Main thread
+                        val showTemplates = if (task.isSuccessful) {
+                            remoteConfig.getBoolean("show_question_templates")
+                        } else true
+
+                        // Safely update UI state on the Main thread
+                        withContext(Dispatchers.Main) {
+                            loadInitialData(showTemplates)
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun loadInitialData(showTemplates: Boolean) {
+        // Load messages from database
+        viewModelScope.launch(Dispatchers.IO) {
             repository.getAllMessages().collectLatest { chatMessages ->
                 withContext(Dispatchers.Main) {
                     _uiState.update { it.copy(messages = chatMessages) }
@@ -37,14 +66,21 @@ class ChatViewModel(
             }
         }
 
-        _uiState.update {
-            it.copy(
-                questionTemplates = listOf(
+        // Load question templates (conditionally)
+        viewModelScope.launch(Dispatchers.IO) {
+            val templates = if (showTemplates) {
+                listOf(
                     "Apa itu Android Compose?",
                     "Jelaskan tentang Gemini API.",
                     "Bagaimana cara menggunakan Room Database?"
                 )
-            )
+            } else {
+                emptyList()
+            }
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(questionTemplates = templates) }
+            }
         }
     }
 
