@@ -10,6 +10,7 @@ data class PartsItem(
 )
 
 data class ContentsItem(
+    val role: String? = null,
     val parts: List<PartsItem>
 )
 

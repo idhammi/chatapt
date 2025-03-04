@@ -30,6 +30,10 @@ class ChatViewModel(
 
     val inputText = mutableStateOf("")
 
+    // store conversation history to be used for AI response
+    // this will be cleared when user closes the app
+    private val _conversationHistory = MutableStateFlow<MutableList<ContentsItem>>(mutableListOf())
+
     init {
         viewModelScope.launch {
             repository.getAllMessages().collectLatest { chatMessages ->
@@ -50,17 +54,22 @@ class ChatViewModel(
                     inputText.value = ""
                 }
             }
-            getAiResponse(newMessage)
+
+            val userContent = ContentsItem(
+                role = "user",
+                parts = listOf(PartsItem(text = newMessage))
+            )
+            addMessageToHistory(userContent)
+
+            getAiResponse()
         }
     }
 
-    private fun getAiResponse(userMessage: String) {
+    private fun getAiResponse() {
+        val allContents = _conversationHistory.value.toList()
+
         val request = GenerativeRequest(
-            contents = listOf(
-                ContentsItem(
-                    parts = listOf(PartsItem(text = userMessage))
-                )
-            ),
+            contents = allContents,
             generationConfig = GenerationConfig(maxOutputTokens = 50)
         )
         viewModelScope.launch {
@@ -75,6 +84,13 @@ class ChatViewModel(
                     viewModelScope.launch(Dispatchers.IO) {
                         repository.insertMessage(aiMessage)
                     }
+
+                    val aiContent = ContentsItem(
+                        role = "model",
+                        parts = listOf(PartsItem(text = response))
+                    )
+                    addMessageToHistory(aiContent)
+
                     emit(ChatUiState.Idle)
                 }.onFailure {
                     emit(ChatUiState.Idle)
@@ -84,7 +100,16 @@ class ChatViewModel(
             }
         }
     }
+
+    private fun addMessageToHistory(content: ContentsItem) {
+        _conversationHistory.value.add(content)
+        if (_conversationHistory.value.size > MAX_HISTORY_SIZE) {
+            _conversationHistory.value.removeAt(0)
+        }
+    }
 }
+
+private const val MAX_HISTORY_SIZE = 10
 
 sealed interface ChatUiState {
     data object Loading : ChatUiState

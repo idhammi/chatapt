@@ -35,20 +35,34 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.idham.chatapt.database.ChatMessage
-import id.idham.chatapt.di.appModule
-import id.idham.chatapt.di.databaseModule
-import id.idham.chatapt.di.networkModule
 import id.idham.chatapt.ui.theme.ChatAPTTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.KoinApplication
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val messages = viewModel.messages.collectAsStateWithLifecycle().value
+
+    ChatContent(
+        uiState = uiState,
+        inputText = viewModel.inputText.value,
+        messages = messages,
+        onTextChanged = viewModel.inputText::value::set,
+        onSend = viewModel::sendMessage
+    )
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun ChatContent(
+    uiState: ChatUiState,
+    inputText: String,
+    messages: List<ChatMessage>,
+    onTextChanged: (String) -> Unit,
+    onSend: () -> Unit,
+) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -61,9 +75,9 @@ fun ChatScreen(viewModel: ChatViewModel = koinViewModel()) {
         bottomBar = {
             ChatInputBar(
                 uiState = uiState,
-                text = viewModel.inputText.value,
+                text = inputText,
                 onSend = {
-                    viewModel.sendMessage()
+                    onSend()
                     coroutineScope.launch {
                         delay(100)
                         if (messages.isNotEmpty()) {
@@ -71,7 +85,7 @@ fun ChatScreen(viewModel: ChatViewModel = koinViewModel()) {
                         }
                     }
                 },
-                onTextChanged = { viewModel.inputText.value = it }
+                onTextChanged = onTextChanged
             )
         }
     ) { innerPadding ->
@@ -164,15 +178,13 @@ fun ChatMessageItem(message: ChatMessage) {
 @Preview(showBackground = true)
 @Composable
 private fun ChatScreen_Preview() {
-    KoinApplication(application = {
-        modules(
-            networkModule,
-            databaseModule,
-            appModule
+    ChatAPTTheme {
+        ChatContent(
+            uiState = ChatUiState.Idle,
+            inputText = "",
+            messages = emptyList(),
+            onTextChanged = {},
+            onSend = {}
         )
-    }) {
-        ChatAPTTheme {
-            ChatScreen()
-        }
     }
 }
