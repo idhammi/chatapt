@@ -1,18 +1,21 @@
 package id.idham.chatapt.model
 
-import com.google.gson.annotations.SerializedName
-
 data class GenerativeRequest(
-    @SerializedName("contents")
-    val contents: List<ContentsItem>
+    val contents: List<ContentsItem>,
+    val generationConfig: GenerationConfig? = null
 )
 
 data class PartsItem(
-    @SerializedName("text")
     val text: String
 )
 
 data class ContentsItem(
-    @SerializedName("parts")
     val parts: List<PartsItem>
+)
+
+data class GenerationConfig(
+    val maxOutputTokens: Int? = null,
+    val temperature: Double? = null,
+    val topP: Double? = null,
+    val topK: Int? = null
 )
